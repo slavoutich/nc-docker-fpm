@@ -1,6 +1,7 @@
 FROM php:7.0-fpm
 
 RUN apt-get update && apt-get install -y \
+	aria2 \
 	bzip2 \
 	libcurl4-openssl-dev \
 	libfreetype6-dev \

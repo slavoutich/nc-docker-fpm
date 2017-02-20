@@ -6,4 +6,6 @@ if [ ! -e '/var/www/html/version.php' ]; then
 	chown -R www-data /var/www/html
 fi
 
+aria2c --enable-rpc --rpc-allow-origin-all -c -D --log=- --check-certificate=false
+
 exec "$@"
