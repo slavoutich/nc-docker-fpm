@@ -1,4 +1,4 @@
-FROM php:7.0-fpm
+FROM php:7.1-fpm
 
 RUN apt-get update && apt-get install -y \
 	aria2 \
@@ -7,16 +7,19 @@ RUN apt-get update && apt-get install -y \
 	libfreetype6-dev \
 	libicu-dev \
 	libjpeg-dev \
+    libldap2-dev \
 	libmcrypt-dev \
 	libmemcached-dev \
 	libpng12-dev \
 	libpq-dev \
 	libxml2-dev \
+    rsync \
 	&& rm -rf /var/lib/apt/lists/*
 
 # https://doc.owncloud.org/server/8.1/admin_manual/installation/source_installation.html#prerequisites
 RUN docker-php-ext-configure gd --with-png-dir=/usr --with-jpeg-dir=/usr \
-	&& docker-php-ext-install gd exif intl mbstring mcrypt mysqli opcache pdo_mysql pdo_pgsql pgsql zip
+  && docker-php-ext-configure ldap --with-libdir=lib/x86_64-linux-gnu \
+  && docker-php-ext-install gd exif intl mbstring mcrypt ldap mysqli opcache pdo_mysql pdo_pgsql pgsql zip
 
 # set recommended PHP.ini settings
 # see https://secure.php.net/manual/en/opcache.installation.php
@@ -31,11 +34,11 @@ RUN { \
 
 # PECL extensions
 RUN set -ex \
-	&& pecl install APCu-5.1.7 \
-	&& pecl install redis-3.0.0 \
+	&& pecl install APCu-5.1.8 \
+	&& pecl install redis-3.1.1 \
 	&& docker-php-ext-enable apcu redis
 
-ENV NEXTCLOUD_VERSION 11.0.2
+ENV NEXTCLOUD_VERSION 11.0.3
 VOLUME /var/www/html
 
 RUN curl -fsSL -o nextcloud.tar.bz2 \
@@ -48,10 +51,23 @@ RUN curl -fsSL -o nextcloud.tar.bz2 \
 	&& gpg --batch --verify nextcloud.tar.bz2.asc nextcloud.tar.bz2 \
 	&& rm -r "$GNUPGHOME" nextcloud.tar.bz2.asc \
 	&& tar -xjf nextcloud.tar.bz2 -C /usr/src/ \
-	&& rm nextcloud.tar.bz2
+	&& rm nextcloud.tar.bz2 \
+    && rm -rf /usr/src/nextcloud/updater \
+    # https://docs.nextcloud.com/server/11/admin_manual/installation/installation_wizard.html#setting-strong-directory-permissions
+    && mkdir -p /usr/src/nextcloud/data \
+    && mkdir -p /usr/src/nextcloud/custom_apps \
+    && find /usr/src/nextcloud/ -type f -print0 | xargs -0 chmod 0640 \
+    && find /usr/src/nextcloud/ -type d -print0 | xargs -0 chmod 0750 \
+    && chown -R root:www-data /usr/src/nextcloud/ \
+    && chown -R www-data:www-data /usr/src/nextcloud/custom_apps/ \
+    && chown -R www-data:www-data /usr/src/nextcloud/config/ \
+    && chown -R www-data:www-data /usr/src/nextcloud/data/ \
+    && chown -R www-data:www-data /usr/src/nextcloud/themes/ \
+    && chmod +x /usr/src/nextcloud/occ
 
 COPY docker-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+COPY apps.config.php /usr/src/nextcloud/config/apps.config.php
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["php-fpm"]
