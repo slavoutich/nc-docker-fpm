@@ -1,4 +1,4 @@
-FROM php:7.0-fpm
+FROM php:7.1-fpm
 
 RUN apt-get update && apt-get install -y \
 	aria2 \
@@ -31,11 +31,12 @@ RUN { \
 
 # PECL extensions
 RUN set -ex \
-	&& pecl install APCu-5.1.7 \
-	&& pecl install redis-3.0.0 \
-	&& docker-php-ext-enable apcu redis
+	&& pecl install APCu-5.1.8 \
+    && pecl install memcached-3.0.2 \
+	&& pecl install redis-3.1.1 \
+	&& docker-php-ext-enable apcu redis memcached
 
-ENV NEXTCLOUD_VERSION 11.0.2
+ENV NEXTCLOUD_VERSION 11.0.3
 VOLUME /var/www/html
 
 RUN curl -fsSL -o nextcloud.tar.bz2 \
